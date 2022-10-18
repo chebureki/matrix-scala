@@ -1,0 +1,35 @@
+def {{operation_id}}(
+    {{#path_args}}
+        {{>argument}},
+    {{/path_args}}
+    {{#query_args}}
+        {{>argument}},
+    {{/query_args}}
+    {{#header_args}}
+        {{>argument}},
+    {{/header_args}}
+    {{#has_body}}
+        body: {{#body_type}}{{>argument_type}}{{/body_type}}
+    {{/has_body}}
+): ApiRequest[{{#response_type}}{{>argument_type}}{{/response_type}}] = ApiRequest(
+    endpoint="{{endpoint}}",
+    httpMethod = HttpMethods.{{http_method}},
+    default_code={{default_code}},
+    body={{#has_body}}Some(body){{/has_body}}{{^has_body}}None{{/has_body}},
+    inQuery=Map(
+        {{#query_args}}
+            "{{name}}"->{{>argument_name}},
+        {{/query_args}}
+    ),
+    inPath=Map(
+        {{#path_args}}
+            "{{name}}"->{{>argument_name}},
+        {{/path_args}}
+    ),
+    inHeader=Map(
+        {{#header_args}}
+            "{{name}}"->{{>argument_name}},
+        {{/header_args}}
+    ),
+)
+

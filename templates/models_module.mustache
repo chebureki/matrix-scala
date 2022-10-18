@@ -1,0 +1,17 @@
+{{>header}}
+
+package {{package_base}}.model
+import {{package_base}}.model.definitions._
+import {{package_base}}.core._
+
+{{#imports}}
+    //TODO: REMOVE THIS
+    import {{package_base}}.models.definitions.{{.}};
+{{/imports}}
+
+object {{module_name}} {
+    {{#models}}
+        {{> model }}
+    {{/models}}
+
+}

@@ -1,0 +1,20 @@
+{{>header}}
+
+package {{package_base}}.api
+
+import {{package_base}}.core._
+import {{package_base}}.model.definitions._
+import {{package_base}}.model.{{module_name}}._
+
+import akka.http.scaladsl.model.HttpMethods
+
+{{#imports}}
+    import {{package_base}}.models.definitions.{{.}};
+{{/imports}}
+
+object {{module_name}} {
+    {{#operations}}
+        {{> operation }}
+    {{/operations}}
+
+}

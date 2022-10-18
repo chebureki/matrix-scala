@@ -1,0 +1,33 @@
+{{>header}}
+
+package {{package_base}}.core;
+
+import akka.http.scaladsl.model.HttpMethod;
+
+trait ApiRequestBody
+
+case class ApiResponse()
+
+case class ApiRequest[T](
+    endpoint: String,
+    httpMethod: HttpMethod,
+    default_code: Int,
+    body: Option[ApiRequestBody],
+    inQuery: Map[String,Any],
+    inPath: Map[String,Any],
+    inHeader: Map[String,Any],
+)
+
+case class ApiError(code: Int, message: String) extends Throwable(message)
+
+sealed trait Union0
+sealed trait Union1[A]
+sealed trait Union2[A,B]
+sealed trait Union3[A,B,C]
+sealed trait Union4[A,B,C,D]
+//sealed trait UnionN[T1,T2,T3, ... TN]
+
+final case class A[A_, B_, C_, D_](value: A_) extends Union1[A_] with Union2[A_,B_] with Union3[A_,B_,C_] with Union4[A_,B_,C_,D_]
+final case class B[A_, B_, C_, D_](value: B_) extends Union2[A_,B_] with Union3[A_,B_,C_] with Union4[A_,B_,C_,D_]
+final case class C[A_, B_, C_, D_](value: C_) extends Union3[A_,B_,C_] with Union4[A_,B_,C_,D_]
+final case class D[A_, B_, C_, D_](value: D_) extends Union4[A_,B_,C_,D_]

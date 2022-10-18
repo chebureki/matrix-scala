@@ -1,0 +1,18 @@
+{{#has_inner_models}}
+    object {{name}}{
+     {{#inner_models}}
+         {{>model}}
+
+     {{/inner_models}}
+
+    }
+
+{{/has_inner_models}}
+{{#has_fields}}
+case class {{name}}(
+{{#fields}}
+    {{>argument}},
+{{/fields}}
+
+){{#is_body}}extends ApiRequestBody{{/is_body}}
+{{/has_fields}}

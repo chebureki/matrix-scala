@@ -1,0 +1,6 @@
+build
+.idea
+target
+__pycache__
+.bsp
+dump
