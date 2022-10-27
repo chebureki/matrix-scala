@@ -136,7 +136,7 @@ def transform_parameter(param: Parameter)->Argument:
 
 #"Some cool name" => "SomeCoolName"
 def to_model_name(s: str)->str:
-    delimiters="\s|-|_"
+    delimiters="\s|-|_|\.|\$"
     #fooBarBar => FooBarBar
     #as opposed to pythons: fooBarBar => Foobarbar
     def capitalize_first_char(s: str)->str:
