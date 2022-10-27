@@ -11,6 +11,7 @@ from glob import glob
 from dataclasses import dataclass
 from functools import reduce
 from operator import or_ as set_combine # | operator
+from collections import namedtuple
 
 from typing import Optional, Dict, Union, TypeVar, Generic,Any, Type
 
@@ -278,53 +279,105 @@ def load_swagger_dict(path: str)->dict:
         sanitised = dict_replace_keys(data, lookup=ident_replace_lookup)
         return sanitised
 
-def extract_refs(swagger_dict: dict[str,any]) -> set[str]:
+T = TypeVar("T")
+def flatten_2d(outer: list[list[T]])->list[T]:
+    return [item for sublist in outer for item in sublist]
+
+
+# find all references within a swagger, but do not open references
+def flat_extract_refs(swagger_dict: dict[str,any]) -> set[str]:
+    def filter_dict(l:iter)->list:
+        return list(filter(lambda t: isinstance(t, dict),l))
     ref: set[str] = {swagger_dict["ref"]} if "ref" in swagger_dict else set()
-    children = filter(lambda t: isinstance(t, dict), swagger_dict.values())
+    dict_children = filter_dict(swagger_dict.values())
+    array_children = filter_dict(flatten_2d(list(filter(lambda t: isinstance(t, list), swagger_dict.values()))))
+
     return set_combine(
         ref,
         reduce(
             set_combine,
             map(
-                extract_refs,
-                children,
+                flat_extract_refs,
+                dict_children + array_children,
             ),
             set[str]()
         )
     )
 
 
-def load_definition(base_path: str, ref_path: str)->Schema:
-    data = load_swagger_dict(os.path.join(base_path,ref_path))
-    return dacite.from_dict(data_class=Schema, data=data, config=dacite.Config(check_types=not SWAGGER_DEBUG))
-
 def load_swaggers_from_path(base_path: str)->SwaggerData:
+    # base_path is just for reading, our lookup will only utilize relative_path
+    RefWithPath = namedtuple("RefWithTuple",["base_path","relative_path"])
+    def load_definition(base_path: str, ref_path: str) -> Schema:
+        data = load_swagger_dict(os.path.join(base_path, ref_path))
+        return dacite.from_dict(data_class=Schema, data=data, config=dacite.Config(check_types=not SWAGGER_DEBUG))
+
+    # this implementation causes a swagger to be read multiple times, if referenced a lot
+    def rec_inner_refs(inner: RefWithPath, visited: set[RefWithPath])->set[RefWithPath]:
+        inner_dict = load_swagger_dict(os.path.join(inner.base_path, inner.relative_path))
+
+        extracted_refs = flat_extract_refs(inner_dict)
+        inner_refs = set(
+            map(
+                lambda p: RefWithPath(
+                    os.path.join(inner.base_path,os.path.dirname(inner.relative_path)),
+                    p
+                ),
+                flat_extract_refs(inner_dict)
+            )
+        )
+        diff = inner_refs - visited
+        if len(diff) == 0:
+            return visited.union({inner})
+        now_visited = visited.union(diff).union({inner})
+        return reduce(
+            set_combine,
+            map(
+                lambda i: rec_inner_refs(i, now_visited),
+                diff
+            ),
+            now_visited
+        )
+
     swagger_paths = glob(os.path.join(base_path, "*.yaml"))
     swagger_dicts = list(map(load_swagger_dict, swagger_paths))
     swaggers = list(
         map(
-            lambda dict_data: dacite.from_dict(data_class=Swagger, data=dict_data, config=dacite.Config(check_types=not SWAGGER_DEBUG)),
+            lambda dict_data: dacite.from_dict(data_class=Swagger, data=dict_data,
+                                               config=dacite.Config(check_types=not SWAGGER_DEBUG)),
             swagger_dicts
         )
     )
 
-    ref_paths: list[str] = list(
-        reduce(
-            set_combine,
-            map(
-                extract_refs,
-                swagger_dicts
-            ),
-            set()
+    flat_refs: set[RefWithPath] = set(
+        map(
+            lambda p: RefWithPath(base_path,p),
+            reduce(
+                set_combine,
+                map(
+                    flat_extract_refs,
+                    swagger_dicts
+                )
+            )
         )
+    )
+
+    recursive_refs = reduce(
+        set_combine,
+        map(
+            lambda inner: rec_inner_refs(inner, set()),
+            flat_refs
+        ),
+        set()
     )
 
     ref_path_lookup: dict[str, Schema] = dict(
         map(
-            lambda p: (p,load_definition(base_path, p)),
-            ref_paths
+            lambda refWithTuple: (refWithTuple.relative_path,load_definition(refWithTuple.base_path,refWithTuple.relative_path)),
+            recursive_refs
         )
     )
+
 
     return SwaggerData(
         swaggers,
